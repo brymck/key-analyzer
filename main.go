@@ -12,9 +12,13 @@ var (
     helpFlag bool
 )
 
-func printUsage() {
-    fmt.Println("Usage: key-analyzer [options] <name>")
+func printUsage() error {
+    _, err := fmt.Println("Usage: key-analyzer [options] <name>")
+    if err != nil {
+        return err
+    }
     flag.PrintDefaults()
+    return nil
 }
 
 func run() error {
@@ -22,8 +26,7 @@ func run() error {
     flag.Parse()
     args := flag.Args()
     if len(args) == 0 || helpFlag {
-        printUsage()
-        return nil
+        return printUsage()
     }
 
     filename := args[0]
@@ -34,20 +37,31 @@ func run() error {
     defer file.Close()
 
     p := NewParser(file)
+    r, err := p.ParseRecord()
+    if err != nil {
+        if err == io.EOF {
+            return nil
+        }
+        return err
+    }
+    fmt.Print(r.keys)
+    prev := r
 
     for {
-        err := p.ParseRecord()
+        r, err = p.ParseRecord()
         if err != nil {
             if err == io.EOF {
-                break
+                return nil
             }
             return err
         }
-        // Sleep for 1 second
-        time.Sleep(1 * time.Second)
+        if r.timestamp.Sub(prev.timestamp) > 500*time.Millisecond {
+            fmt.Println(r.keys)
+        } else {
+            fmt.Print(r.keys)
+        }
+        prev = r
     }
-
-    return nil
 }
 
 func main() {
