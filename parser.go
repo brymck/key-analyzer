@@ -52,7 +52,7 @@ func readTimestamp(r io.Reader) (time.Time, error) {
         return time.Time{}, err
     }
 
-    ts := time.Unix(int64(sec), int64(usec))
+    ts := time.Unix(sec, int64(usec))
     return ts, nil
 }
 

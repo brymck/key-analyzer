@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"time"
 )
@@ -37,30 +38,24 @@ func run() error {
     defer file.Close()
 
     p := NewParser(file)
-    r, err := p.ParseRecord()
-    if err != nil {
-        if err == io.EOF {
-            return nil
-        }
-        return err
-    }
-    fmt.Print(r.keys)
-    prev := r
+    prev := &Record{timestamp: time.Unix(math.MaxInt64, 0)}
 
     for {
-        r, err = p.ParseRecord()
+        r, err := p.ParseRecord()
         if err != nil {
             if err == io.EOF {
                 return nil
             }
             return err
         }
-        if r.timestamp.Sub(prev.timestamp) > 500*time.Millisecond {
-            fmt.Println(r.keys)
-        } else {
-            fmt.Print(r.keys)
+        if r.eventType == EventTypeKeyDown {
+            if r.timestamp.Sub(prev.timestamp) > 500*time.Millisecond {
+                fmt.Printf("\n%s", r.keys)
+            } else {
+                fmt.Print(r.keys)
+            }
+            prev = r
         }
-        prev = r
     }
 }
 
