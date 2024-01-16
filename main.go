@@ -6,6 +6,7 @@ import (
 	"io"
 	"math"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -39,24 +40,38 @@ func run() error {
 
     p := NewParser(file)
     prev := &Record{timestamp: time.Unix(math.MaxInt64, 0)}
+    var sb strings.Builder
+    ev := NewEvaluator()
 
     for {
         r, err := p.ParseRecord()
         if err != nil {
             if err == io.EOF {
-                return nil
+                break
             }
             return err
         }
         if r.eventType == EventTypeKeyDown {
             if r.timestamp.Sub(prev.timestamp) > 500*time.Millisecond {
                 fmt.Printf("\n%s", r.keys)
+                sb.WriteString(r.keys)
+                ev.Evaluate(sb.String())
+                sb.Reset()
             } else {
+                sb.WriteString(r.keys)
                 fmt.Print(r.keys)
             }
             prev = r
         }
     }
+
+    if sb.Len() > 0 {
+        ev.Evaluate(sb.String())
+    }
+
+    ev.Print()
+
+    return nil
 }
 
 func main() {
