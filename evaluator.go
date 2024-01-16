@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"sort"
-	"unicode"
 )
 
 type Evaluator struct {
@@ -11,6 +10,7 @@ type Evaluator struct {
     total int32
     sfbs int32
     dsfbs int32
+    frequencies map[rune]int32
     unmapped map[rune]int32
 }
 
@@ -18,6 +18,17 @@ type Coordinates struct {
     x byte
     y byte
     finger Finger
+    shift bool
+}
+
+type FullCoordinates struct {
+    x byte
+    y byte
+    finger Finger
+    shift bool
+    ctrl bool
+    opt bool
+    cmd bool
 }
 
 type Finger byte
@@ -37,63 +48,201 @@ const (
 
 var (
     qwerty = map[rune]Coordinates{
-        'q': {0, 0, LeftPinky},
-        'w': {0, 1, LeftRing},
-        'e': {0, 2, LeftMiddle},
-        'r': {0, 3, LeftIndex},
-        't': {0, 4, LeftIndex},
-        'y': {0, 5, RightIndex},
-        'u': {0, 6, RightIndex},
-        'i': {0, 7, RightMiddle},
-        'o': {0, 8, RightRing},
-        'p': {0, 9, RightPinky},
-        'a': {1, 0, LeftPinky},
-        's': {1, 1, LeftRing},
-        'd': {1, 2, LeftMiddle},
-        'f': {1, 3, LeftIndex},
-        'g': {1, 4, LeftIndex},
-        'h': {1, 5, RightIndex},
-        'j': {1, 6, RightIndex},
-        'k': {1, 7, RightMiddle},
-        'l': {1, 8, RightRing},
-        'z': {2, 0, LeftPinky},
-        'x': {2, 1, LeftRing},
-        'c': {2, 2, LeftMiddle},
-        'v': {2, 3, LeftIndex},
-        'b': {2, 4, LeftIndex},
-        'n': {2, 5, RightIndex},
-        'm': {2, 6, RightIndex},
-        '␣': {15, 15, LeftThumb},
+        '`': {0, 0, LeftPinky, false},
+        '~': {0, 0, LeftPinky, true},
+        '1': {0, 1, LeftPinky, false},
+        '!': {0, 1, LeftPinky, true},
+        '2': {0, 2, LeftRing, false},
+        '@': {0, 2, LeftRing, true},
+        '3': {0, 3, LeftMiddle, false},
+        '#': {0, 3, LeftMiddle, true},
+        '4': {0, 4, LeftIndex, false},
+        '$': {0, 4, LeftIndex, true},
+        '5': {0, 5, LeftIndex, false},
+        '%': {0, 5, LeftIndex, true},
+        '6': {0, 6, RightIndex, false},
+        '^': {0, 6, RightIndex, true},
+        '7': {0, 7, RightIndex, false},
+        '&': {0, 7, RightIndex, true},
+        '8': {0, 8, RightMiddle, false},
+        '*': {0, 8, RightMiddle, true},
+        '9': {0, 9, RightRing, false},
+        '(': {0, 9, RightRing, true},
+        '0': {0, 10, RightIndex, false},
+        ')': {0, 10, RightIndex, true},
+        '-': {0, 11, RightIndex, false},
+        '_': {0, 11, RightIndex, true},
+        '=': {0, 12, RightIndex, false},
+        '+': {0, 12, RightIndex, true},
+        '⌫': {0, 13, RightIndex, false},
+        '⇥': {1, 0, LeftPinky, false},
+        'q': {1, 1, LeftPinky, false},
+        'Q': {1, 1, LeftPinky, true},
+        'w': {1, 2, LeftRing, false},
+        'W': {1, 2, LeftRing, true},
+        'e': {1, 3, LeftMiddle, false},
+        'E': {1, 3, LeftMiddle, true},
+        'r': {1, 4, LeftIndex, false},
+        'R': {1, 4, LeftIndex, true},
+        't': {1, 5, LeftIndex, false},
+        'T': {1, 5, LeftIndex, true},
+        'y': {1, 6, RightIndex, false},
+        'Y': {1, 6, RightIndex, true},
+        'u': {1, 7, RightIndex, false},
+        'U': {1, 7, RightIndex, true},
+        'i': {1, 8, RightMiddle, false},
+        'I': {1, 8, RightMiddle, true},
+        'o': {1, 9, RightRing, false},
+        'O': {1, 9, RightRing, true},
+        'p': {1, 10, RightPinky, false},
+        'P': {1, 10, RightPinky, true},
+        '[': {1, 11, RightPinky, false},
+        '{': {1, 11, RightPinky, true},
+        ']': {1, 12, RightPinky, false},
+        '}': {1, 12, RightPinky, true},
+        '\\': {1, 13, RightPinky, false},
+        '|': {1, 13, RightPinky, true},
+        'a': {2, 0, LeftPinky, false},
+        'A': {2, 0, LeftPinky, true},
+        's': {2, 1, LeftRing, false},
+        'S': {2, 1, LeftRing, true},
+        'd': {2, 2, LeftMiddle, false},
+        'D': {2, 2, LeftMiddle, true},
+        'f': {2, 3, LeftIndex, false},
+        'F': {2, 3, LeftIndex, true},
+        'g': {2, 4, LeftIndex, false},
+        'G': {2, 4, LeftIndex, true},
+        'h': {2, 5, RightIndex, false},
+        'H': {2, 5, RightIndex, true},
+        'j': {2, 6, RightIndex, false},
+        'J': {2, 6, RightIndex, true},
+        'k': {2, 7, RightMiddle, false},
+        'K': {2, 7, RightMiddle, true},
+        'l': {2, 8, RightRing, false},
+        'L': {2, 8, RightRing, true},
+        ';': {2, 9, RightRing, false},
+        ':': {2, 9, RightRing, true},
+        '\'': {2, 10, RightRing, false},
+        '"': {2, 10, RightRing, true},
+        '↩': {2, 11, RightRing, false},
+        'z': {3, 0, LeftPinky, false},
+        'Z': {3, 0, LeftPinky, true},
+        'x': {3, 1, LeftRing, false},
+        'X': {3, 1, LeftRing, true},
+        'c': {3, 2, LeftMiddle, false},
+        'C': {3, 2, LeftMiddle, true},
+        'v': {3, 3, LeftIndex, false},
+        'V': {3, 3, LeftIndex, true},
+        'b': {3, 4, LeftIndex, false},
+        'B': {3, 4, LeftIndex, true},
+        'n': {3, 5, RightIndex, false},
+        'N': {3, 5, RightIndex, true},
+        'm': {3, 6, RightIndex, false},
+        'M': {3, 6, RightIndex, true},
+        ',': {3, 7, RightMiddle, false},
+        '<': {3, 7, RightMiddle, true},
+        '.': {3, 8, RightRing, false},
+        '>': {3, 8, RightRing, true},
+        '/': {3, 9, RightIndex, false},
+        '?': {3, 9, RightIndex, true},
+        '␣': {15, 15, LeftThumb, false},
     }
 )
 
 func NewEvaluator() *Evaluator {
-    return &Evaluator{unmapped: make(map[rune]int32)}
+    return &Evaluator{frequencies: make(map[rune]int32), unmapped: make(map[rune]int32)}
 }
 
 func (e *Evaluator) Evaluate(s string) {
+    var ctrl bool
+    var opt bool
+    var cmd bool
+    var shift bool
+    var fingers [10]bool
     fmt.Print(s)
-    prev := Coordinates{}
+    prev := FullCoordinates{}
     // prevPrev := Coordinates{}
     for i, ch := range s {
+        switch ch {
+        case '⌃':
+            ctrl = true
+            continue
+        case '⌥':
+            opt = true
+            continue
+        case '⌘':
+            cmd = true
+            continue
+        case '⇧':
+            shift = true
+            continue
+        }
         e.total++
 
-        lc := unicode.ToLower(ch)
-        if lc != ch {
-            // TODO handle shift
-            ch = lc
-        }
-        curr, ok := qwerty[unicode.ToLower(ch)]
+        coords, ok := qwerty[ch]
         if !ok {
             e.unmapped[ch]++
+            ctrl = false
+            opt = false
+            cmd = false
+            shift = false
             continue
         }
 
+        if coords.shift {
+            shift = true
+        }
+
+        curr := FullCoordinates{coords.x, coords.y, coords.finger, shift, ctrl, opt, cmd}
         if prev.x == curr.x && prev.y == curr.y {
+            ctrl = false
+            opt = false
+            cmd = false
+            shift = false
             continue
         }
 
-        e.fingers[curr.finger]++
+        e.frequencies[ch]++
+
+        fingers[curr.finger] = true
+        if curr.ctrl {
+            if fingers[LeftPinky] {
+                fingers[LeftRing] = true
+            } else {
+                fingers[LeftPinky] = true
+            }
+        }
+        if curr.shift {
+            if fingers[LeftPinky] || curr.finger <= LeftThumb {
+                if fingers[RightPinky] {
+                    fingers[RightRing] = true
+                } else {
+                    fingers[RightPinky] = true
+                }
+            } else {
+                fingers[LeftPinky] = true
+            }
+        }
+        if curr.cmd {
+            if curr.finger <= LeftThumb {
+                fingers[RightThumb] = true
+            } else {
+                fingers[LeftThumb] = true
+            }
+        }
+        if curr.opt {
+            if curr.finger <= LeftThumb {
+                fingers[RightThumb] = true
+            } else {
+                fingers[LeftThumb] = true
+            }
+        }
+
+        for f, down := range fingers {
+            if down {
+                e.fingers[f]++
+            }
+        }
 
         if i > 0 {
             if curr.finger == prev.finger {
@@ -120,6 +269,14 @@ func (e *Evaluator) Evaluate(s string) {
 
         // prevPrev = prev
         prev = curr
+        ctrl = false
+        opt = false
+        cmd = false
+        shift = false
+
+        for i := range fingers {
+            fingers[i] = false
+        }
     }
 }
 
@@ -131,8 +288,11 @@ func (e *Evaluator) Print() {
     fmt.Printf("sfbs: %d (%.1f%%)\n", e.sfbs, float32(e.sfbs)*100.0/float32(e.total))
     fmt.Printf("dsfbs: %d (%.1f%%)\n", e.dsfbs, float32(e.dsfbs)*100.0/float32(e.total))
     fmt.Println()
+    fmt.Println("frequencies:")
+    e.printDescending(e.frequencies)
+    fmt.Println()
     fmt.Println("unmapped:")
-    e.printUnmapped()
+    e.printDescending(e.unmapped)
 }
 
 type keyValue struct {
@@ -140,10 +300,10 @@ type keyValue struct {
     value int32
 }
 
-func (e *Evaluator) printUnmapped() {
+func (e *Evaluator) printDescending(m map[rune]int32) {
     // Create a slice of key-value pairs
-    pairs := make([]keyValue, 0, len(e.unmapped))
-    for k, v := range e.unmapped {
+    pairs := make([]keyValue, 0, len(m))
+    for k, v := range m {
         pairs = append(pairs, keyValue{k, v})
     }
 
